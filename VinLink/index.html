@@ -37,7 +37,7 @@
             border-radius: 5px;
             box-sizing: border-box;
         }
-        button {
+        .btn-main {
             width: 100%;
             padding: 12px;
             background: #e94560;
@@ -48,8 +48,40 @@
             cursor: pointer;
             transition: 0.3s;
         }
-        button:hover { background: #c1354b; }
-        #result { margin-top: 15px; font-size: 0.9rem; word-break: break-all; }
+        .btn-main:hover { background: #c1354b; }
+        
+        /* Style untuk area hasil link */
+        #result { margin-top: 15px; font-size: 0.9rem; }
+        .result-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #0f3460;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            border: 1px solid #e94560;
+        }
+        .result-link {
+            color: #fff;
+            text-decoration: none;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            margin-right: 10px;
+            max-width: 200px;
+        }
+        .btn-copy {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .btn-copy:active { background: #fff; color: #e94560; }
+        
         .loading { display: none; color: #aaa; }
     </style>
 </head>
@@ -59,7 +91,7 @@
         <h1>VinLink</h1>
         <input type="text" id="longUrl" placeholder="Tempel Link Panjang di sini...">
         <input type="text" id="customCode" placeholder="Kode Kustom (Opsional, cth: promo)">
-        <button onclick="shortenUrl()">Pendekkan!</button>
+        <button class="btn-main" onclick="shortenUrl()">Pendekkan!</button>
         <div id="result"></div>
     </div>
 
@@ -69,13 +101,10 @@
     </div>
 
     <script type="module">
-        // Import fungsi-fungsi penting dari Firebase (Menggunakan versi 12.8.0 sesuai data kamu)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-analytics.js";
-        // Kita tambah ini untuk Database:
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-        // Konfigurasi Kamu (Sudah Saya Masukkan)
+        // Konfigurasi Kamu
         const firebaseConfig = {
             apiKey: "AIzaSyBEdeZ2qPIu8tNpnSftcvrbwwRxwR7aVd8",
             authDomain: "vinlink-f71e9.firebaseapp.com",
@@ -86,23 +115,18 @@
             measurementId: "G-VFDRDVKLVD"
         };
 
-        // Mulai Firebase
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        const db = getFirestore(app); // Ini untuk database
+        const db = getFirestore(app);
 
         // --- FUNGSI 1: CEK REDIRECT ---
         async function checkRedirect() {
             const path = window.location.pathname.substring(1); 
-
             if (path && path !== "" && path !== "index.html") {
                 document.getElementById("mainApp").style.display = "none";
                 document.getElementById("redirectMsg").style.display = "block";
-
                 try {
                     const docRef = doc(db, "links", path);
                     const docSnap = await getDoc(docRef);
-
                     if (docSnap.exists()) {
                         window.location.href = docSnap.data().url;
                     } else {
@@ -110,7 +134,6 @@
                     }
                 } catch (error) {
                     console.error("Error:", error);
-                    document.getElementById("redirectMsg").innerText = "Terjadi kesalahan koneksi database.";
                 }
             }
         }
@@ -122,32 +145,38 @@
             const resultDiv = document.getElementById('result');
 
             if (!longUrl) return alert("Isi linknya dulu dong!");
-
-            // Jika kode kosong, buat acak
-            if (!code) {
-                code = Math.random().toString(36).substring(2, 7);
-            }
+            if (!code) code = Math.random().toString(36).substring(2, 7);
 
             resultDiv.innerHTML = "<span class='loading'>Memproses...</span>";
 
             try {
-                // Simpan ke database
                 await setDoc(doc(db, "links", code), {
                     url: longUrl,
                     createdAt: new Date()
                 });
 
                 const shortUrl = window.location.origin + "/" + code;
-                resultDiv.innerHTML = `Berhasil! Link kamu:<br><a href="${shortUrl}" target="_blank" style="color:#e94560">${shortUrl}</a>`;
+                
+                // TAMPILAN BARU DENGAN TOMBOL COPY
+                resultDiv.innerHTML = `
+                    <div class="result-box">
+                        <a href="${shortUrl}" target="_blank" class="result-link">${shortUrl}</a>
+                        <button class="btn-copy" onclick="copyLink('${shortUrl}')">Salin</button>
+                    </div>
+                `;
             } catch (error) {
                 console.error(error);
-                // Pesan error khusus jika permission denied
-                if(error.code === 'permission-denied') {
-                     resultDiv.innerText = "Gagal: Database belum disetting ke Test Mode.";
-                } else {
-                     resultDiv.innerText = "Gagal membuat link. Cek konsol.";
-                }
+                resultDiv.innerText = "Gagal membuat link. Cek konsol.";
             }
+        }
+
+        // --- FUNGSI 3: FITUR COPY ---
+        window.copyLink = function(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Link berhasil disalin!");
+            }).catch(err => {
+                console.error('Gagal menyalin', err);
+            });
         }
 
         checkRedirect();
